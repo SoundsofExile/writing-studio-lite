@@ -1,0 +1,22 @@
+{
+  "name": "xochi-pocket",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Xochi Pocket: the Android companion to Xochi Writing Studio",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=iife --target=chrome110 --outfile=www/app.js --sourcemap",
+    "test": "node --test test/ shared/",
+    "sync": "npm run build && cap sync android",
+    "phone": "npm run sync && cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/filesystem": "8.1.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0",
+    "esbuild": "0.28.2"
+  }
+}
