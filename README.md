@@ -16,10 +16,17 @@ the desktop is [docs/HANDOFF-v2.md](docs/HANDOFF-v2.md).
 - `android/` — the Android project, made by Capacitor.
 
 ## Status
-Milestone 1 prototype: one plain-text scene that saves a second after typing stops and straight
-away when the app is hidden. Tried on the S24 Ultra on 2026-11-06: typed, swiped away, reopened,
-and the text came back exactly (checked byte for byte over USB). Not yet tried: locking mid-
-sentence, Home before "Saved", a restart, or the stress text (blank lines, emoji, accents).
+Milestone 2: one scene on the Rough page, in the desktop's dark colours. Tinos font, first-line
+indent, italic and bold (inside a word they style the whole word), undo, redo, word count and a
+Check spelling switch. The editor is CodeMirror 6, at the desktop's versions.
+
+Tried on the S24 Ultra on 2026-11-06 with Samsung Keyboard and Gboard. Milestone 1: typed, swiped
+away, reopened, and the text came back exactly. Milestone 2: styles saved in the desktop's format
+(checked over USB). B in the middle of a word used to put hidden marks inside the word, which let
+the line wrap there; it now styles the whole word. Not yet tried: locking mid-sentence, Home before
+"Saved", a restart.
+
+The app icon comes from `assets/icon-source.webp`; `npm run icon` rebuilds every size.
 
 ## Commands
 - `npm test` — all PC tests.

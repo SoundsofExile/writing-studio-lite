@@ -2,21 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Xochi Pocket</title>
-  <style>
-    html, body { margin: 0; height: 100%; background: #faf8f3; color: #222; }
-    body { display: flex; flex-direction: column; font-family: system-ui, sans-serif; }
-    header { display: flex; justify-content: space-between; align-items: center;
-      padding: calc(env(safe-area-inset-top) + 8px) 16px 8px; font-size: 14px; color: #666; }
-    #page { flex: 1; width: 100%; box-sizing: border-box; border: 0; outline: 0; resize: none;
-      padding: 8px 16px calc(env(safe-area-inset-bottom) + 16px); background: transparent; color: inherit;
-      font: 18px/1.8 'Times New Roman', serif; }
-  </style>
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <header><span>Xochi Pocket · prototype</span><span id="status">Opening…</span></header>
-  <textarea id="page" spellcheck="false" autocapitalize="sentences" aria-label="Scene"></textarea>
-  <script src="app.js"></script>
+  <header><span id="words">0 words</span><span id="status">Opening…</span></header>
+  <div id="tools" role="toolbar" aria-label="Writing tools">
+    <button id="undo" type="button" aria-label="Undo" disabled>↶</button>
+    <button id="redo" type="button" aria-label="Redo" disabled>↷</button>
+    <span class="gap"></span>
+    <button id="italic" type="button" aria-label="Italic" aria-pressed="false">I</button>
+    <button id="bold" type="button" aria-label="Bold" aria-pressed="false">B</button>
+    <span class="gap"></span>
+    <button id="spelling" type="button" aria-pressed="false">Check spelling</button>
+  </div>
+  <div id="page"></div>
+  <script src="main.js"></script>
 </body>
 </html>

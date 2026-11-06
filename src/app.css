@@ -1,0 +1,63 @@
+/* Tinos has the same letter widths as Times New Roman, which Android doesn't have. */
+@import '@fontsource/tinos/400.css';
+@import '@fontsource/tinos/400-italic.css';
+@import '@fontsource/tinos/700.css';
+@import '@fontsource/tinos/700-italic.css';
+
+/* The desktop's dark scheme (rev03 style.css): page #1b1c24, text #e6e4ee, selection #4b3f73,
+   accent #c6affb, bars like its cards. */
+:root {
+  color-scheme: dark;
+  --page: #1b1c24;
+  --ink: #e6e4ee;
+  --muted: #92929f;
+  --dim: #55566a;
+  --bar: #18191f;
+  --line: #2a2b34;
+  --accent: #c6affb;
+  --on: #292335;
+  --on-line: rgba(198, 175, 251, .45);
+  --selection: #4b3f73;
+}
+
+html, body { margin: 0; height: 100%; background: var(--page); color: var(--ink); }
+body { display: flex; flex-direction: column; font-family: system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+header {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: calc(env(safe-area-inset-top) + 8px) 16px 6px; font-size: 13px; color: var(--muted);
+}
+#status { text-align: right; }
+
+#tools {
+  display: flex; gap: 6px; align-items: center; padding: 6px 12px;
+  background: var(--bar); border-bottom: 1px solid var(--line);
+}
+#tools button {
+  min-width: 44px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px;
+  background: transparent; color: var(--ink); font: 18px/1 'Tinos', serif;
+}
+#tools button:disabled { color: var(--dim); }
+#tools button[aria-pressed="true"] { background: var(--on); border-color: var(--on-line); color: var(--accent); }
+#tools .gap { flex: 1; }
+#italic { font-style: italic; }
+#bold { font-weight: 700; }
+#spelling { font: 14px/1 system-ui, sans-serif !important; }
+
+#page { flex: 1; min-height: 0; }
+#page .cm-editor { height: 100%; }
+#page .cm-editor.cm-focused { outline: none; }
+#page .cm-scroller { font: 18px/2 'Tinos', 'Times New Roman', serif; }
+#page .cm-content {
+  padding: 12px 16px calc(env(safe-area-inset-bottom) + 40vh); caret-color: var(--accent);
+}
+/* Each paragraph indented, as on the desktop page (48px at its 16px text is 3em; 2em suits a phone). */
+#page .cm-line { padding: 0; text-indent: 2em; }
+#page ::selection, #page .cm-selectionBackground { background: var(--selection) !important; }
+
+.cm-ms-em { font-style: italic; }
+.cm-ms-strong { font-weight: 700; }
+#page .cm-line.cm-ms-title, #page .cm-line.cm-ms-breakline { text-align: center; text-indent: 0; }
+#page .cm-line.cm-ms-titlefirst { padding-top: 16px; }
+#page .cm-line.cm-ms-titlelast { padding-bottom: 32px; }
+.cm-ms-break { display: inline-block; width: 100%; text-align: center; }

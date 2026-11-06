@@ -1,9 +1,12 @@
 node_modules/
-www/app.js
-www/app.js.map
+www/main.js
+www/app.css
+www/fonts/
+www/*.map
 .test-data/
 android/app/build/
 android/build/
 android/.gradle/
 android/local.properties
 android/.idea/
+assets/icon-preview.png

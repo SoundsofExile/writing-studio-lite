@@ -47,7 +47,8 @@ function createSceneStore(fs, { now = () => Date.now() } = {}) {
     return null;
   }
 
-  async function save(id, text) {
+  // keepRecovery: always keep a copy of what's being replaced, for saves that look unusual.
+  async function save(id, text, { keepRecovery: forceRecovery = false } = {}) {
     if (typeof text !== 'string') throw new Error('Scene text must be a string');
     await fs.write(tmpPath(id), text);
     const back = await fs.read(tmpPath(id));
@@ -57,7 +58,7 @@ function createSceneStore(fs, { now = () => Date.now() } = {}) {
     }
     if (await fs.exists(mainPath(id))) {
       const due = now() - (lastRecovery.get(id) ?? -Infinity) >= RECOVERY_EVERY_MS;
-      if (due) await keepRecovery(id, await fs.read(mainPath(id)));
+      if (due || forceRecovery) await keepRecovery(id, await fs.read(mainPath(id)));
     }
     await fs.rename(tmpPath(id), mainPath(id));
   }

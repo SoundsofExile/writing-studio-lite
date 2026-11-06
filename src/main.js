@@ -1,30 +1,54 @@
-// Milestone 1 prototype: one scene. Type, swipe the app away, reopen, and the exact text is back.
+// Milestone 2: one scene on the Rough page, with italic, bold, undo, redo, word count and a
+// spelling switch. Saving is unchanged from milestone 1.
 const { App } = require('@capacitor/app');
 const { createSceneStore } = require('./scene-store.js');
 const { fsCapacitor } = require('./fs-capacitor.js');
+const { createRoughEditor, wordCount, markersPaired } = require('./rough.js');
 
 const SCENE = 'prototype';
 const store = createSceneStore(fsCapacitor);
-const page = document.getElementById('page');
-const status = document.getElementById('status');
+const $ = (id) => document.getElementById(id);
+const status = $('status');
+const words = $('words');
+const buttons = { undo: $('undo'), redo: $('redo'), italic: $('italic'), bold: $('bold'), spelling: $('spelling') };
 
+let editor = null;
 let saved = '';
 let timer = null;
 let saving = Promise.resolve();
+let warned = false;
 
 const show = (text) => { status.textContent = text; };
+const countWords = (text) => {
+  const n = wordCount(text);
+  words.textContent = `${n.toLocaleString()} ${n === 1 ? 'word' : 'words'}`;
+};
+
+function refreshButtons() {
+  if (!editor) return;
+  const on = editor.stylesAt();
+  buttons.italic.setAttribute('aria-pressed', String(on.italic));
+  buttons.bold.setAttribute('aria-pressed', String(on.bold));
+  buttons.undo.disabled = !editor.canUndo();
+  buttons.redo.disabled = !editor.canRedo();
+}
 
 // Saves run one after another, so an older save can never land on top of a newer one.
 function saveNow() {
   clearTimeout(timer);
   timer = null;
-  const text = page.value;
+  if (!editor) return saving;
+  const text = editor.getText();
   if (text === saved) return saving;
   saving = saving.then(async () => {
+    // Style marks that don't pair up mean something went wrong while typing.
+    // Save anyway, so no words are lost, but keep the copy from before as well.
+    const odd = !markersPaired(text);
     try {
-      await store.save(SCENE, text);
+      await store.save(SCENE, text, { keepRecovery: odd });
       saved = text;
-      show(page.value === saved ? 'Saved' : 'Editing');
+      if (odd && !warned) { warned = true; show('Saved · styles look odd, earlier copy kept'); }
+      else show(editor.getText() === saved ? 'Saved' : 'Editing');
     } catch (err) {
       show('Not saved: ' + err.message);
     }
@@ -32,10 +56,19 @@ function saveNow() {
   return saving;
 }
 
-page.addEventListener('input', () => {
-  show('Editing');
-  clearTimeout(timer);
-  timer = setTimeout(saveNow, 1000);
+// Buttons act without taking focus, so the keyboard stays open.
+function wire(button, action) {
+  button.addEventListener('pointerdown', (e) => e.preventDefault());
+  button.addEventListener('click', () => { action(); refreshButtons(); });
+}
+wire(buttons.undo, () => editor?.undo());
+wire(buttons.redo, () => editor?.redo());
+wire(buttons.italic, () => editor?.toggle('italic'));
+wire(buttons.bold, () => editor?.toggle('bold'));
+wire(buttons.spelling, () => {
+  const on = buttons.spelling.getAttribute('aria-pressed') !== 'true';
+  buttons.spelling.setAttribute('aria-pressed', String(on));
+  editor?.setSpelling(on);
 });
 
 // Save straight away when the app is hidden, the screen locks, or the app is closed.
@@ -47,10 +80,20 @@ App.addListener('pause', saveNow);
   try {
     const text = await store.load(SCENE);
     saved = text ?? '';
-    page.value = saved;
+    editor = createRoughEditor($('page'), {
+      doc: saved,
+      onChange(next) {
+        show('Editing');
+        countWords(next);
+        clearTimeout(timer);
+        timer = setTimeout(saveNow, 1000);
+      },
+      onSelection: refreshButtons,
+    });
+    countWords(saved);
+    refreshButtons();
     show(text === null ? 'New scene' : 'Saved');
   } catch (err) {
-    page.readOnly = true;
     show('Could not open: ' + err.message);
   }
 })();
