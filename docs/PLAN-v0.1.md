@@ -43,6 +43,8 @@ Decided 2026-11-05: the suggestion in each item below was accepted.
    turns underlines on for that scene.*
 3. **Stories on the phone:** *Suggestion: in 0.1, stories come from the desktop (several at
    once are fine). Creating a new story on the phone comes in 0.2.*
+   **Changed 2026-11-06:** the phone can also start its own stories in 0.1, because the desktop
+   can't export a story file yet.
 4. **Discard instead of delete:** *Suggestion: yes. A discarded scene is hidden on the phone and
    can be brought back.*
 5. **Where the repo lives:** the `xochilite` folder currently sits untracked inside the desktop
@@ -96,6 +98,17 @@ These fixes are needed before relying on them. All of them are in `xochilite/sha
 3. **Ideas without a story:** v2 needs a story name. Ideas you catch on the phone without one go
    into the handoff of whichever story you export next. You'll be asked which.
 
+**Decided 2026-11-06: JSON is how the two apps talk. The phone also exports `.docx`, as a
+copy for your own records.**
+- Phone to desktop now: a `writing-studio-handoff-v1` JSON file per scene. The desktop on
+  `main` already imports it, exactly, as a new scene, with no desktop change. A v2 handoff, which
+  updates scenes in place, comes later.
+- Desktop to phone: the desktop's `.docx` manuscript can't be split back into scenes, so this
+  needs "Export story for phone…" on the desktop. That's the one desktop change this plan needs,
+  and it waits for approval.
+- `.docx` export from the phone is a records copy only: it loses blank lines, scene breaks and
+  notes when it goes through Word.
+
 Tests 8 and 9 in the brief (Android to Windows and back) need the desktop to read these files.
 That's a **desktop change, and it waits for your approval.** It's the work I undid earlier:
 two menu items and an import step in `main.cjs` and `renderer.cjs`, plus one save option in
@@ -131,16 +144,15 @@ Each milestone ends with something you can try on the phone.
 2. **Rough page.** Font, indent, italic and bold buttons, undo and redo, and word count. This is
    **the keyboard test on the S24 with Samsung Keyboard and Gboard**, and decides CodeMirror or
    the fallback.
-3. **Stories and scenes.** Open a story file, a scene list, rename, discard, scene notes, reopen
-   at the last cursor position, and Quick Capture from Home.
+3. **Stories and scenes.** Start a story on the phone or open a story file, a scene list, rename,
+   discard, scene notes, reopen at the last cursor position, and Quick Capture from Home.
 4. **Focus Mode, Dyslexia comfort and text size.** Each independent. Switching never changes the
    text.
-5. **Export.** A handoff file through the Share sheet or file picker to OneDrive, plus `.txt`
-   for single scenes.
+5. **Export.** Through the Share sheet or file picker to OneDrive: a handoff JSON file for the
+   desktop, and `.docx` for your records.
 6. **Desktop import.** *Only after you approve the desktop change.* Round-trip tests 8 and 9.
 
-Version 0.1 is milestones 1 to 5, with 6 when approved. Brand-new stories on the phone and
-sending discards to the desktop are 0.2.
+Version 0.1 is milestones 1 to 5, with 6 when approved. Sending discards to the desktop is 0.2.
 
 ## 7. Testing
 - **On the PC** (`node --test`), every change: the 10 text-preservation cases, saving and

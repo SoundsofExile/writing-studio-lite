@@ -7,17 +7,95 @@
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <header><span id="words">0 words</span><span id="status">Opening…</span></header>
-  <div id="tools" role="toolbar" aria-label="Writing tools">
-    <button id="undo" type="button" aria-label="Undo" disabled>↶</button>
-    <button id="redo" type="button" aria-label="Redo" disabled>↷</button>
-    <span class="gap"></span>
-    <button id="italic" type="button" aria-label="Italic" aria-pressed="false">I</button>
-    <button id="bold" type="button" aria-label="Bold" aria-pressed="false">B</button>
-    <span class="gap"></span>
-    <button id="spelling" type="button" aria-pressed="false">Check spelling</button>
+  <!-- Home: Quick Capture and the stories -->
+  <section id="home" class="screen" hidden>
+    <header class="bar"><h1>Xochi Pocket</h1></header>
+    <div class="scroll">
+      <div class="capture">
+        <textarea id="captureText" rows="3" placeholder="Catch an idea…" aria-label="Quick Capture"></textarea>
+        <div class="row">
+          <button id="captureIdeas" class="link" type="button">Ideas (0) ›</button>
+          <button id="captureSave" class="primary" type="button" disabled>Save idea</button>
+        </div>
+      </div>
+      <div class="row heading">
+        <h2>Stories</h2>
+        <span>
+          <button id="openStory" type="button">Open file</button>
+          <button id="newStory" class="primary" type="button">New story</button>
+        </span>
+      </div>
+      <input id="storyFile" type="file" accept=".json,application/json" hidden>
+      <ul id="stories" class="list"></ul>
+      <p id="noStories" class="empty" hidden>No stories yet. Start one, or open a story file from the desktop.</p>
+    </div>
+  </section>
+
+  <!-- Ideas caught on Home -->
+  <section id="ideasScreen" class="screen" hidden>
+    <header class="bar">
+      <button id="ideasBack" class="back" type="button" aria-label="Back to stories">‹</button>
+      <span class="title-text">Ideas</span>
+    </header>
+    <div class="scroll">
+      <ul id="ideas" class="list"></ul>
+      <p id="noIdeas" class="empty" hidden>No open ideas. Catch one on the Home screen.</p>
+      <div class="row">
+        <button id="showDoneIdeas" class="link" type="button" hidden></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- One story: its scenes -->
+  <section id="story" class="screen" hidden>
+    <header class="bar">
+      <button id="storyBack" class="back" type="button" aria-label="Back to stories">‹</button>
+      <button id="storyName" class="title" type="button" aria-label="Rename story"></button>
+    </header>
+    <div class="scroll">
+      <ul id="scenes" class="list"></ul>
+      <p id="noScenes" class="empty" hidden>No scenes yet.</p>
+      <div class="row">
+        <button id="showDiscarded" class="link" type="button" hidden></button>
+        <button id="newScene" class="primary" type="button">New scene</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- The page -->
+  <section id="editor" class="screen" hidden>
+    <header class="bar">
+      <button id="editorBack" class="back" type="button" aria-label="Back to scenes">‹</button>
+      <span class="title-block">
+        <span id="sceneTitle" class="title-text"></span>
+        <span class="sub"><span id="words">0 words</span> · <span id="status"></span></span>
+      </span>
+    </header>
+    <div id="tools" role="toolbar" aria-label="Writing tools">
+      <button id="undo" type="button" aria-label="Undo" disabled>↶</button>
+      <button id="redo" type="button" aria-label="Redo" disabled>↷</button>
+      <span class="gap"></span>
+      <button id="italic" type="button" aria-label="Italic" aria-pressed="false">I</button>
+      <button id="bold" type="button" aria-label="Bold" aria-pressed="false">B</button>
+      <span class="gap"></span>
+      <button id="notesToggle" class="small" type="button" aria-pressed="false">Notes</button>
+      <button id="spelling" class="small" type="button" aria-pressed="false">Spelling</button>
+    </div>
+    <div id="notesPanel" hidden>
+      <textarea id="notes" rows="4" placeholder="Notes for this scene: where you stopped, what comes next…" aria-label="Scene notes"></textarea>
+    </div>
+    <div id="page"></div>
+  </section>
+
+  <!-- A small menu that slides up for scene actions -->
+  <div id="sheet" hidden>
+    <div class="sheet-card" role="menu">
+      <p id="sheetTitle"></p>
+      <div id="sheetButtons"></div>
+      <button id="sheetCancel" type="button">Cancel</button>
+    </div>
   </div>
-  <div id="page"></div>
+
   <script src="main.js"></script>
 </body>
 </html>

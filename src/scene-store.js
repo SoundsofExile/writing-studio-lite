@@ -11,20 +11,22 @@ const safeId = (id) => {
   return String(id);
 };
 
-function createSceneStore(fs, { now = () => Date.now() } = {}) {
+// `dir` puts this store's scenes/ and recovery/ folders inside another folder, e.g. 'stories/abc/'.
+function createSceneStore(fs, { now = () => Date.now(), dir = '' } = {}) {
   const lastRecovery = new Map();
-  const mainPath = (id) => `scenes/${safeId(id)}.txt`;
-  const tmpPath = (id) => `scenes/${safeId(id)}.tmp`;
+  const mainPath = (id) => `${dir}scenes/${safeId(id)}.txt`;
+  const tmpPath = (id) => `${dir}scenes/${safeId(id)}.tmp`;
+  const recoveryDir = `${dir}recovery`;
 
   async function keepRecovery(id, text) {
     const stamp = String(now()).padStart(15, '0');
-    await fs.write(`recovery/${safeId(id)}.${stamp}.txt`, text);
+    await fs.write(`${recoveryDir}/${safeId(id)}.${stamp}.txt`, text);
     lastRecovery.set(id, now());
-    const mine = (await fs.list('recovery'))
+    const mine = (await fs.list(recoveryDir))
       .filter((name) => name.startsWith(id + '.') && name.endsWith('.txt'))
       .sort();
     for (const old of mine.slice(0, Math.max(0, mine.length - RECOVERY_KEEP))) {
-      await fs.remove('recovery/' + old);
+      await fs.remove(`${recoveryDir}/${old}`);
     }
   }
 
@@ -65,7 +67,7 @@ function createSceneStore(fs, { now = () => Date.now() } = {}) {
 
   async function recoveryCopies(id) {
     safeId(id);
-    return (await fs.list('recovery'))
+    return (await fs.list(recoveryDir))
       .filter((name) => name.startsWith(id + '.') && name.endsWith('.txt'))
       .sort()
       .reverse();

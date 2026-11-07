@@ -217,9 +217,12 @@ function titleEnter(view) {
 
 // ---- The editor.
 
-function createRoughEditor(parent, { doc, onChange, onSelection }) {
+// prose: true for Rough and Manuscript scenes. Markdown and unlabeled scenes are edited as plain
+// text, with no style buttons, so hidden style characters never go into them.
+function createRoughEditor(parent, { doc, prose = true, cursor = 0, onChange, onSelection }) {
   let spelling = false;
   const toggle = (view, style) => {
+    if (!prose) return true;
     const spec = toggleStyleSpec(view.state, style);
     if (spec) view.dispatch({ ...spec, scrollIntoView: true, userEvent: 'input.style' });
     return true;
@@ -228,6 +231,7 @@ function createRoughEditor(parent, { doc, onChange, onSelection }) {
     parent,
     state: EditorState.create({
       doc,
+      selection: EditorSelection.cursor(Math.min(Math.max(0, cursor), doc.length)),
       extensions: [
         history(),
         keymap.of([
@@ -237,7 +241,7 @@ function createRoughEditor(parent, { doc, onChange, onSelection }) {
           ...historyKeymap,
           ...defaultKeymap,
         ]),
-        proseView,
+        prose ? proseView : [],
         EditorView.lineWrapping,
         // Text leaving or arriving never carries the hidden characters.
         EditorView.clipboardOutputFilter.of((text) => stripMarkers(text.replaceAll(SCENE_BREAK, '#'))),
@@ -252,9 +256,15 @@ function createRoughEditor(parent, { doc, onChange, onSelection }) {
       ],
     }),
   });
+  // Bring the remembered cursor into view once the page has its size.
+  requestAnimationFrame(() => view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: 'center' }) }));
   return {
     view,
+    prose,
     getText: () => view.state.doc.toString(),
+    cursor: () => view.state.selection.main.head,
+    focus: () => view.focus(),
+    destroy: () => view.destroy(),
     toggle(style) { toggle(view, style); view.focus(); },
     undo() { undo(view); view.focus(); },
     redo() { redo(view); view.focus(); },
