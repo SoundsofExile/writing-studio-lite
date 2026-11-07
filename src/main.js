@@ -1,10 +1,12 @@
-// Milestone 3: stories and scenes. Home (Quick Capture and stories), a story's scene list, and the
-// page with notes. Saving works as before: a second after typing stops, and straight away when the
+// Milestones 3 and 4: Home (Quick Capture and stories), Ideas, a story's scene list, and the
+// page with notes and page settings. Saving works as before: a second after typing stops, and straight away when the
 // app is hidden.
 const { App } = require('@capacitor/app');
+const { EditorView } = require('@codemirror/view');
 const { fsCapacitor } = require('./fs-capacitor.js');
 const { createLibrary } = require('./library.js');
 const { createRoughEditor, wordCount, markersPaired } = require('./rough.js');
+const { DEFAULTS, cleanSettings, stepTextSize } = require('./settings.js');
 
 const lib = createLibrary(fsCapacitor);
 const $ = (id) => document.getElementById(id);
@@ -33,6 +35,8 @@ function problem(err) {
 function show(name) {
   screen = name;
   for (const [key, node] of Object.entries(screens)) node.hidden = key !== name;
+  // Focus Mode belongs to the page; the other screens always show their bars.
+  document.body.classList.toggle('focus', settings.focus && name === 'editor');
 }
 
 // ---- A small menu of actions
@@ -289,6 +293,8 @@ async function openScene(sceneId) {
   $('notes').value = notes;
   $('notesPanel').hidden = true;
   editorButtons.notes.setAttribute('aria-pressed', 'false');
+  $('viewPanel').hidden = true;
+  $('viewToggle').setAttribute('aria-pressed', 'false');
   editorButtons.notes.textContent = notes.trim() ? 'Notes •' : 'Notes';
   editorButtons.spelling.setAttribute('aria-pressed', 'false');
   $('page').dataset.format = scene.bodyFormat;
@@ -353,6 +359,44 @@ $('notes').addEventListener('input', () => {
 });
 $('editorBack').onclick = () => { if (storyId) openStory(storyId).catch(problem); };
 
+// ---- Page settings: Focus Mode, Dyslexia comfort and text size. They change only how the page
+// looks, never the text, and each is independent of the others.
+
+let settings = { ...DEFAULTS };
+
+function applySettings() {
+  document.body.classList.toggle('focus', settings.focus && screen === 'editor');
+  document.body.classList.toggle('comfort', settings.comfort);
+  $('page').style.setProperty('--text-size', `${settings.textSize}px`);
+  $('comfortToggle').setAttribute('aria-pressed', String(settings.comfort));
+  $('sizeLabel').textContent = settings.textSize;
+  $('smaller').disabled = stepTextSize(settings.textSize, -1) === settings.textSize;
+  $('larger').disabled = stepTextSize(settings.textSize, 1) === settings.textSize;
+}
+
+function changeSettings(change) {
+  settings = { ...settings, ...change };
+  applySettings();
+  // The page's size or spacing changed: keep the cursor's line on screen.
+  if (editor) {
+    editor.view.requestMeasure();
+    editor.view.dispatch({ effects: EditorView.scrollIntoView(editor.view.state.selection.main.head, { y: 'center' }) });
+  }
+  lib.saveState({ settings }).catch(problem);
+}
+
+editorButtons.view = $('viewToggle');
+editorButtons.view.onclick = () => {
+  const opening = $('viewPanel').hidden;
+  $('viewPanel').hidden = !opening;
+  editorButtons.view.setAttribute('aria-pressed', String(opening));
+};
+wire($('focusOn'), () => { $('viewPanel').hidden = true; editorButtons.view.setAttribute('aria-pressed', 'false'); changeSettings({ focus: true }); });
+wire($('focusExit'), () => changeSettings({ focus: false }));
+wire($('comfortToggle'), () => changeSettings({ comfort: !settings.comfort }));
+wire($('smaller'), () => changeSettings({ textSize: stepTextSize(settings.textSize, -1) }));
+wire($('larger'), () => changeSettings({ textSize: stepTextSize(settings.textSize, 1) }));
+
 // ---- Leaving the app and the Back button
 
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveAll(); });
@@ -360,6 +404,7 @@ window.addEventListener('pagehide', () => { saveAll(); });
 App.addListener('pause', () => { saveAll(); });
 App.addListener('backButton', () => {
   if (!$('sheet').hidden) { $('sheet').hidden = true; return; }
+  if (screen === 'editor' && settings.focus) { changeSettings({ focus: false }); return; }
   if (screen === 'editor') openStory(storyId).catch(problem);
   else if (screen === 'story' || screen === 'ideas') openHome().catch(problem);
   else App.minimizeApp();
@@ -371,6 +416,8 @@ App.addListener('backButton', () => {
   try {
     await lib.adoptPrototype();
     const state = await lib.loadState();
+    settings = cleanSettings(state.settings);
+    applySettings();
     const stories = await lib.listStories();
     const known = stories.some((s) => s.id === state.storyId);
     if (known && state.screen === 'editor' && state.sceneId) {

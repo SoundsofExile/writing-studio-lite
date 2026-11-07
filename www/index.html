@@ -80,10 +80,22 @@
       <span class="gap"></span>
       <button id="notesToggle" class="small" type="button" aria-pressed="false">Notes</button>
       <button id="spelling" class="small" type="button" aria-pressed="false">Spelling</button>
+      <button id="viewToggle" class="small" type="button" aria-pressed="false" aria-label="Page settings">Aa</button>
     </div>
     <div id="notesPanel" hidden>
       <textarea id="notes" rows="4" placeholder="Notes for this scene: where you stopped, what comes next…" aria-label="Scene notes"></textarea>
     </div>
+    <!-- How the page looks. None of these change the text. -->
+    <div id="viewPanel" hidden>
+      <button id="focusOn" type="button">Focus Mode</button>
+      <button id="comfortToggle" type="button" aria-pressed="false">Dyslexia comfort</button>
+      <span class="size" role="group" aria-label="Text size">
+        <button id="smaller" type="button" aria-label="Smaller text">A−</button>
+        <span id="sizeLabel">18</span>
+        <button id="larger" type="button" aria-label="Larger text">A+</button>
+      </span>
+    </div>
+    <button id="focusExit" type="button">Exit focus</button>
     <div id="page"></div>
   </section>
 

@@ -91,7 +91,7 @@ textarea:focus { outline: none; border-color: var(--on-line); }
   background: var(--bar); border-bottom: 1px solid var(--line);
 }
 #tools button {
-  min-width: 44px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px;
+  min-width: 40px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px;
   background: transparent; color: var(--ink); font: 18px/1 'Tinos', serif;
 }
 #tools button:disabled { color: var(--dim); }
@@ -99,12 +99,35 @@ textarea:focus { outline: none; border-color: var(--on-line); }
 #tools .gap { flex: 1; }
 #italic { font-style: italic; }
 #bold { font-weight: 700; }
-#tools button.small { font: 14px/1 system-ui, sans-serif; padding: 0 8px; }
+#tools button.small { font: 14px/1 system-ui, sans-serif; padding: 0 6px; white-space: nowrap; }
+
+/* ---- Page settings: Focus Mode, Dyslexia comfort, text size */
+#viewPanel {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--bar); border-bottom: 1px solid var(--line);
+}
+#viewPanel button {
+  min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: #202128; font-size: 14px;
+}
+#viewPanel button[aria-pressed="true"] { background: var(--on); border-color: var(--on-line); color: var(--accent); }
+#viewPanel .size { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+#viewPanel .size button { min-width: 44px; padding: 0; font-family: 'Tinos', serif; font-size: 16px; }
+#sizeLabel { min-width: 2ch; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* Focus Mode: only the page. A faint button in the corner brings everything back, as does Back. */
+#focusExit { display: none; }
+body.focus #editor .bar, body.focus #tools, body.focus #notesPanel, body.focus #viewPanel { display: none; }
+body.focus #focusExit {
+  display: block; position: fixed; z-index: 5; top: calc(env(safe-area-inset-top) + 8px); right: 10px;
+  height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 17px;
+  background: var(--bar); color: var(--muted); font-size: 12px; opacity: .55;
+}
+body.focus #page .cm-content { padding-top: calc(env(safe-area-inset-top) + 48px); }
 
 #page { flex: 1; min-height: 0; }
 #page .cm-editor { height: 100%; }
 #page .cm-editor.cm-focused { outline: none; }
-#page .cm-scroller { font: 18px/2 'Tinos', 'Times New Roman', serif; }
+#page .cm-scroller { font: var(--text-size, 18px)/2 'Tinos', 'Times New Roman', serif; }
 #page .cm-content {
   padding: 12px 16px calc(env(safe-area-inset-bottom) + 40vh); caret-color: var(--accent);
 }
@@ -118,3 +141,15 @@ textarea:focus { outline: none; border-color: var(--on-line); }
 #page .cm-line.cm-ms-titlefirst { padding-top: 16px; }
 #page .cm-line.cm-ms-titlelast { padding-bottom: 32px; }
 .cm-ms-break { display: inline-block; width: 100%; text-align: center; }
+
+/* Dyslexia comfort, on screen only, with the desktop's exact values: the same font and size with
+   wider letter and word spacing, dark gray on a dim warm shade. Italics can make words seem to run
+   together, so italic text shows upright on a soft tint. Rough and Manuscript pages only, as on the
+   desktop. */
+body.comfort #page:is([data-format="rough"], [data-format="manuscript"]) { background: #e0cfa0; }
+body.comfort #page:is([data-format="rough"], [data-format="manuscript"]) .cm-editor { color: #33302b; }
+body.comfort #page:is([data-format="rough"], [data-format="manuscript"]) .cm-content { caret-color: #33302b; }
+body.comfort #page:is([data-format="rough"], [data-format="manuscript"]) ::selection,
+body.comfort #page:is([data-format="rough"], [data-format="manuscript"]) .cm-selectionBackground { background: #c9b98c !important; }
+body.comfort #page:is([data-format="rough"], [data-format="manuscript"]) .cm-scroller { letter-spacing: .12em; word-spacing: .2em; }
+body.comfort #page .cm-ms-em { font-style: normal; background: #cdb97f; border-radius: 2px; }
