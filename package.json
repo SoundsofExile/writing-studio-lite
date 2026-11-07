@@ -4,7 +4,7 @@
   "private": true,
   "description": "Xochi Pocket: the Android companion to Xochi Writing Studio",
   "scripts": {
-    "build": "esbuild src/main.js src/app.css --bundle --outdir=www --format=iife --target=chrome110 --loader:.woff2=file --loader:.woff=file --asset-names=fonts/[name] --sourcemap",
+    "build": "esbuild src/main.js src/app.css --bundle --outdir=www --format=iife --target=chrome110 --loader:.woff2=file --loader:.woff=file --asset-names=fonts/[name] --external:buffer --sourcemap",
     "test": "node --test test/ shared/",
     "sync": "npm run build && cap sync android",
     "phone": "npm run sync && cap run android",
@@ -15,14 +15,17 @@
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.6.0",
     "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3",
     "@codemirror/commands": "6.11.1",
     "@codemirror/state": "6.7.6",
-    "@codemirror/view": "6.43.15"
+    "@codemirror/view": "6.43.15",
+    "docx": "9.5.1"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0",
     "@fontsource/tinos": "5.3.0",
     "esbuild": "0.28.2",
+    "jszip": "3.10.1",
     "sharp": "0.35.5"
   }
 }

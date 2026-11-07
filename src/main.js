@@ -7,6 +7,8 @@ const { fsCapacitor } = require('./fs-capacitor.js');
 const { createLibrary } = require('./library.js');
 const { createRoughEditor, wordCount, markersPaired } = require('./rough.js');
 const { DEFAULTS, cleanSettings, stepTextSize } = require('./settings.js');
+const { storyHandoff, fileName, recordsDocBase64 } = require('./export.js');
+const { shareFiles } = require('./share.js');
 
 const lib = createLibrary(fsCapacitor);
 const $ = (id) => document.getElementById(id);
@@ -101,12 +103,13 @@ async function drawIdeas() {
   const done = ideas.filter((i) => i.state);
   const shown = showDoneIdeas ? [...live, ...done] : live;
   $('noIdeas').hidden = live.length > 0;
+  $('sendIdeas').hidden = live.length === 0;
   $('showDoneIdeas').hidden = done.length === 0;
   $('showDoneIdeas').textContent = showDoneIdeas ? 'Hide developed and discarded' : `Developed and discarded (${done.length})`;
   $('ideas').replaceChildren(...shown.map((idea) => el('li', { className: idea.state ? `done ${idea.state}` : '' },
     el('button', { type: 'button', className: 'item', onclick: () => ideaMenu(idea) },
       el('span', { className: 'idea-text', textContent: idea.text }),
-      el('span', { className: 'meta', textContent: [new Date(idea.createdAt).toLocaleString(), IDEA_LABELS[idea.state]].filter(Boolean).join(' · ') })),
+      el('span', { className: 'meta', textContent: [new Date(idea.createdAt).toLocaleString(), IDEA_LABELS[idea.state], !idea.state && idea.sentAt ? 'sent to desktop' : null].filter(Boolean).join(' · ') })),
     el('button', { type: 'button', className: 'more', textContent: '⋯', 'aria-label': 'More for this idea', onclick: () => ideaMenu(idea) }))));
 }
 
@@ -119,6 +122,40 @@ function ideaMenu(idea) {
 }
 
 $('ideasBack').onclick = () => openHome().catch(problem);
+
+// Open ideas go to the desktop's Captures in a story you pick, plus a .docx for your records.
+// Ideas already sent stay here but aren't sent again, unless every open idea has been sent.
+$('sendIdeas').onclick = async () => {
+  try {
+    const stories = await lib.listStories();
+    const names = [];
+    for (const s of stories) {
+      const n = desktopName(await lib.getStory(s.id));
+      if (!names.includes(n)) names.push(n);
+    }
+    const send = (story) => async () => {
+      try {
+        const open = (await lib.listCaptures()).filter((i) => !i.state);
+        const unsent = open.filter((i) => !i.sentAt);
+        if (!unsent.length && !confirm('These ideas were all sent before. Send them again?')) return;
+        const ideas = unsent.length ? unsent : open;
+        const h = storyHandoff({ story, captures: ideas });
+        const title = `Ideas from phone ${new Date().toLocaleDateString()}`;
+        const base = fileName(story, 'ideas from phone');
+        const sent = await shareFiles([
+          { name: base + '.json', text: JSON.stringify(h, null, 1) },
+          { name: base + '.docx', base64: await recordsDocBase64(story, [{ title, text: ideas.map((i) => i.text.trim()).join('\n\n'), bodyFormat: 'plain' }]) },
+        ], 'Send ideas');
+        if (sent) { await lib.markCapturesSent(ideas.map((i) => i.id)); await drawIdeas(); }
+      } catch (err) { problem(err); }
+    };
+    const other = async () => {
+      const typed = prompt('Which story on the desktop should these ideas go to?');
+      if (typed && typed.trim()) await send(typed.trim())();
+    };
+    sheet('Send open ideas to which story?', [...names.map((n) => [n, send(n)]), ['Another story…', other]]);
+  } catch (err) { problem(err); }
+};
 $('showDoneIdeas').onclick = () => { showDoneIdeas = !showDoneIdeas; drawIdeas().catch(problem); };
 
 $('newStory').onclick = async () => {
@@ -183,8 +220,43 @@ function sceneMenu(scene) {
   });
   sheet(scene.title, scene.discarded
     ? [['Bring back', act(() => lib.updateScene(storyId, scene.id, { discarded: false }))], ['Rename', rename]]
-    : [['Open', () => openScene(scene.id).catch(problem)], ['Rename', rename], ['Discard', act(() => lib.updateScene(storyId, scene.id, { discarded: true })), true]]);
+    : [['Open', () => openScene(scene.id).catch(problem)], ['Rename', rename], ['Export', () => exportScenes([scene.id]).catch(problem)], ['Discard', act(() => lib.updateScene(storyId, scene.id, { discarded: true })), true]]);
 }
+
+// ---- Export: one handoff file for the desktop (v2) and a .docx for your records
+
+// The desktop knows a story by its own name, so a story that came from the desktop keeps that
+// name on the way back, even if it was renamed on the phone.
+const desktopName = (story) => (story.source && story.source.story) || story.name;
+
+// Save it to OneDrive's "Xochi Writing Studio Backups" folder and the desktop offers it the next
+// time you open or come back to it. The .docx is only a copy for you; it never goes back in.
+async function exportScenes(sceneIds) {
+  const story = await lib.getStory(storyId);
+  const scenes = [];
+  for (const id of sceneIds) {
+    const s = await lib.loadScene(storyId, id);
+    scenes.push({ ...s, notes: await lib.loadNotes(storyId, id) });
+  }
+  if (!scenes.length) { alert('Nothing has changed on the phone since this story came from the desktop.'); return; }
+  const name = desktopName(story);
+  const one = scenes.length === 1;
+  const base = fileName(name, one ? scenes[0].title : '', 'from phone');
+  const h = storyHandoff({ story: name, scenes });
+  const sent = await shareFiles([
+    { name: base + '.json', text: JSON.stringify(h, null, 1) },
+    { name: base + '.docx', base64: await recordsDocBase64(story.name, scenes) },
+  ], one ? `Export “${scenes[0].title}”` : `Export “${story.name}”`);
+  if (sent) await lib.markSent(storyId, sceneIds);
+}
+
+// Only what changed here: scenes edited on the phone, and scenes made on the phone.
+$('exportStory').onclick = async () => {
+  try {
+    const story = await lib.getStory(storyId);
+    await exportScenes(story.scenes.filter((s) => !s.discarded && (s.changed || !s.desktopId)).map((s) => s.id));
+  } catch (err) { problem(err); }
+};
 
 $('storyBack').onclick = () => openHome().catch(problem);
 $('storyName').onclick = async () => {

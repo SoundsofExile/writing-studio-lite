@@ -1,4 +1,5 @@
-// Phone handoff, format v2. See HANDOFF-v2.md.
+// Phone handoff, format v2. See docs/HANDOFF-v2.md in the Xochi Pocket repo (writing-studio-lite).
+// This desktop copy is the original: Xochi Pocket keeps an identical copy in shared/ and a test checks they match.
 //
 // Everything here is pure: it takes records in and returns plans out, and
 // never touches the database or the file system. main.cjs does the saving.
@@ -95,7 +96,9 @@ function parseHandoff(raw) {
     if (baseVersion !== null && !Number.isSafeInteger(baseVersion)) throw Error(`Scene ${i + 1}: "baseVersion" must be a whole number.`);
     if (sceneId && baseVersion === null) throw Error(`Scene ${i + 1} has a sceneId but no baseVersion.`);
     if (s.bodyFormat !== undefined && s.bodyFormat !== null && !FORMATS.includes(s.bodyFormat)) throw Error(`Scene ${i + 1}: "bodyFormat" must be "markdown" or "rough".`);
-    return { sceneId, baseVersion, title: text(s.title, 'title'), prose: text(s.prose, 'prose', { required: true, exact: true }),
+    // phoneId: the phone's own id for a scene made there, so the story file can link the two later.
+    const phoneId = typeof s.phoneId === 'string' && s.phoneId.length <= 200 ? s.phoneId : null;
+    return { sceneId, baseVersion, phoneId, title: text(s.title, 'title'), prose: text(s.prose, 'prose', { required: true, exact: true }),
       bodyFormat: s.bodyFormat || null,
       scratch: s.scratch === undefined || s.scratch === null ? null : text(s.scratch, 'scratch') };
   });
@@ -137,14 +140,19 @@ function planImport(handoff, records, { now = Date.now(), story = handoff.story 
     const [key] = tag('s', i);
     if (key && applied.has(key)) { summary.alreadyImported++; return; }
     const tags = key ? [key] : [];
-    const existing = s.sceneId ? byId.get(s.sceneId) : null;
+    // A scene made on the phone has no desktop id until a story file goes back, so the phone may
+    // send it again in the meantime: find the copy made last time by the phone's own id.
+    const existing = s.sceneId ? byId.get(s.sceneId)
+      : s.phoneId ? records.find((r) => r.phoneId === s.phoneId && r.kind === 'Scene' && r.project === story) : null;
     const title = s.title.trim();
 
     if (!existing) {
       const note = s.sceneId ? `Imported${from} ${stamp}. The original scene was not found on this computer, so this is a new scene.` : '';
+      // phoneSync: the new record is version 1, made from this phone scene with no desktop version.
       ops.push({ type: 'create', entry: base({ kind: 'Scene', title: title || 'Phone scene', body: s.prose, bodyFormat: bodyFormatOf(s.bodyFormat),
         scratch: [note, s.scratch || ''].filter(Boolean).join('\n\n'), status: 'Draft', order: nextOrder++,
-        handoffItems: tags, ...(handoff.version === 1 && handoff.handoffId ? { handoffId: handoff.handoffId } : {}) }) });
+        handoffItems: tags, ...(!s.sceneId && s.phoneId ? { phoneId: s.phoneId, phoneSync: { from: null, to: 1 } } : {}),
+        ...(handoff.version === 1 && handoff.handoffId ? { handoffId: handoff.handoffId } : {}) }) });
       summary.created++;
       return;
     }
@@ -154,13 +162,18 @@ function planImport(handoff, records, { now = Date.now(), story = handoff.story 
       (s.scratch === null || s.scratch === (existing.scratch || ''));
     if (sameText) { summary.skipped++; return; }
 
+    // Also clean: the phone is still working from the same story file, and the only change here
+    // since then is the phone's own last handoff (phoneSync records it). Any desktop edit moves
+    // the version on, so it no longer matches and the phone text becomes a copy instead.
+    const synced = existing.phoneSync && existing.phoneSync.from === s.baseVersion && existing.phoneSync.to === existing.version;
     const clean = existing.kind === 'Scene' && existing.project === story &&
-      existing.version === s.baseVersion && !touched.has(existing.id);
+      (existing.version === s.baseVersion || synced) && !touched.has(existing.id);
     if (clean) {
       touched.add(existing.id);
       ops.push({ type: 'update', snapshot: true, record: { ...existing, title: title || existing.title, body: s.prose,
         bodyFormat: s.bodyFormat || existing.bodyFormat,
         scratch: s.scratch === null ? existing.scratch : s.scratch,
+        phoneSync: { from: s.baseVersion, to: (existing.version || 0) + 1 },
         handoffItems: [...(existing.handoffItems || []), ...tags].slice(-MAX_TAGS) } });
       summary.updated++;
       return;

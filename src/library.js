@@ -10,6 +10,10 @@
 // Nothing is ever deleted: a discarded scene is only marked, and can be brought back.
 const { createSceneStore } = require('./scene-store.js');
 const { wordCount: wordsIn } = require('./rough.js');
+const { fingerprint } = require('./fingerprint.js');
+
+// What a scene's text and notes were when last sent to the desktop.
+const sentPrint = (text, notes) => fingerprint(`${text}\u0000${notes}`);
 
 const STORY_FORMAT = 'writing-studio-story-v1';
 const FORMATS = ['rough', 'manuscript', 'markdown', 'plain'];
@@ -152,6 +156,7 @@ function createLibrary(fs, { now = () => Date.now() } = {}) {
       if (typeof s.body !== 'string') throw new Error(`Scene ${i + 1} in the file has no text.`);
       return {
         desktopId: typeof s.id === 'string' ? s.id : null,
+        phoneId: typeof s.phoneId === 'string' ? s.phoneId : null,
         desktopVersion: Number.isFinite(s.version) ? s.version : null,
         title: cleanName(s.title) || `Scene ${i + 1}`,
         status: typeof s.status === 'string' ? s.status : 'Draft',
@@ -188,7 +193,12 @@ function createLibrary(fs, { now = () => Date.now() } = {}) {
     const summary = { storyId: m.id, story: m.name, updated: false, added: 0, refreshed: 0, kept: [], unchanged: 0 };
     summary.updated = Boolean(existingId);
     for (const s of file.scenes) {
-      const mine = s.desktopId && m.scenes.find((x) => x.desktopId === s.desktopId);
+      // A scene made on the phone and sent over comes back with the phone's id: link it, don't copy it.
+      const mine = (s.desktopId && m.scenes.find((x) => x.desktopId === s.desktopId)) ||
+        (s.phoneId && m.scenes.find((x) => x.id === s.phoneId && !x.desktopId));
+      // No version yet, so the desktop's copy counts as newer: if the phone hasn't touched the scene
+      // since sending it, it takes the desktop's copy below; if it has, the phone's text is kept.
+      if (mine && !mine.desktopId) Object.assign(mine, { desktopId: s.desktopId, desktopVersion: null });
       if (!mine) {
         const scene = { id: newId(), title: s.title, order: nextOrder(m), status: s.status, bodyFormat: s.bodyFormat, desktopId: s.desktopId, desktopVersion: s.desktopVersion, words: 0, changed: false, discarded: false, cursor: 0 };
         await store.save(scene.id, s.body);
@@ -198,9 +208,15 @@ function createLibrary(fs, { now = () => Date.now() } = {}) {
         summary.added++;
         continue;
       }
-      if (mine.changed) { summary.kept.push(mine.title); continue; }
       const current = (await store.load(mine.id)) ?? '';
       const notes = (await store.load(`${mine.id}--notes`)) ?? '';
+      // Sent to the desktop and not touched here since: once the desktop has a newer version, its
+      // copy is the one to keep, and the scene takes desktop updates again.
+      const sentOnly = mine.changed && mine.sent === sentPrint(current, notes) &&
+        Number.isFinite(s.desktopVersion) && s.desktopVersion > (mine.desktopVersion ?? -1);
+      if (mine.changed && !sentOnly) { summary.kept.push(mine.title); continue; }
+      mine.changed = false;
+      delete mine.sent;
       if (current === s.body && notes === s.notes && mine.title === s.title && mine.bodyFormat === s.bodyFormat) {
         mine.desktopVersion = s.desktopVersion;
         summary.unchanged++;
@@ -214,6 +230,17 @@ function createLibrary(fs, { now = () => Date.now() } = {}) {
     }
     await saveMeta(m);
     return summary;
+  });
+
+  // After a send: remember what each scene said, so a later story file can tell "edited here
+  // since" from "only sent". Ideas are marked sent so they aren't sent twice.
+  const markSent = (storyId, sceneIds) => serial(async () => {
+    const m = await meta(storyId);
+    for (const id of sceneIds) {
+      const scene = sceneOf(m, id);
+      scene.sent = sentPrint((await storyStore(storyId).load(id)) ?? '', (await storyStore(storyId).load(`${id}--notes`)) ?? '');
+    }
+    await saveMeta(m);
   });
 
   // ---- Quick Capture
@@ -231,6 +258,12 @@ function createLibrary(fs, { now = () => Date.now() } = {}) {
   // An idea that's been used or isn't wanted is only marked, like a discarded scene, so it can come
   // back. state: 'developed', 'discarded', or null to put it back with the open ideas.
   const IDEA_STATES = [null, 'developed', 'discarded'];
+  const markCapturesSent = (ids) => serial(async () => {
+    const list = await listCaptures();
+    const at = new Date(now()).toISOString();
+    for (const item of list) if (ids.includes(item.id)) item.sentAt = at;
+    await writeJson(inbox(), 'captures', list);
+  });
   const setCaptureState = (id, state) => serial(async () => {
     if (!IDEA_STATES.includes(state)) throw new Error('Unknown idea state.');
     const list = await listCaptures();
@@ -269,7 +302,7 @@ function createLibrary(fs, { now = () => Date.now() } = {}) {
   return {
     listStories, createStory, renameStory, getStory,
     addScene, loadScene, saveSceneText, updateScene, loadNotes, saveNotes,
-    parseStoryFile, importStoryFile, matchingStory,
+    parseStoryFile, importStoryFile, matchingStory, markSent, markCapturesSent,
     listCaptures, addCapture, setCaptureState,
     loadState, saveState, adoptPrototype,
   };

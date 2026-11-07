@@ -196,3 +196,59 @@ test('app state keeps earlier fields when new ones are saved', async (t) => {
   assert.equal(state.adoptedPrototype, true);
   assert.equal(state.sceneId, 'y');
 });
+
+// ---- After sending to the desktop (handoff v2)
+
+const sceneFrom = (over = {}) => ({ id: 'd1', version: 5, title: 'Selfie', order: 1, status: 'Draft', bodyFormat: 'rough', body: 'desk text', scratch: '', ...over });
+
+test('a scene sent to the desktop and not touched since takes the desktop version once it is newer', async (t) => {
+  const { lib } = await fresh(t);
+  const { storyId } = await lib.importStoryFile(storyFile([sceneFrom()]));
+  const [scene] = (await lib.getStory(storyId)).scenes;
+  await lib.saveSceneText(storyId, scene.id, 'phone text', { words: 2 });
+  await lib.markSent(storyId, [scene.id]);
+  // The desktop hasn't brought it in yet: same version, so the phone text stays.
+  assert.deepEqual((await lib.importStoryFile(storyFile([sceneFrom()]))).kept, ['Selfie']);
+  // The desktop brought it in and carried on: newer version, so the phone takes it.
+  const s = await lib.importStoryFile(storyFile([sceneFrom({ version: 7, body: 'phone text, then the desk' })]));
+  assert.equal(s.refreshed, 1);
+  assert.equal((await lib.loadScene(storyId, scene.id)).text, 'phone text, then the desk');
+  const after = (await lib.getStory(storyId)).scenes[0];
+  assert.equal(after.changed, false);
+  assert.equal(after.desktopVersion, 7);
+});
+
+test('a scene edited on the phone after it was sent is never overwritten', async (t) => {
+  const { lib } = await fresh(t);
+  const { storyId } = await lib.importStoryFile(storyFile([sceneFrom()]));
+  const [scene] = (await lib.getStory(storyId)).scenes;
+  await lib.saveSceneText(storyId, scene.id, 'phone text', { words: 2 });
+  await lib.markSent(storyId, [scene.id]);
+  await lib.saveSceneText(storyId, scene.id, 'phone text, more', { words: 3 });
+  assert.deepEqual((await lib.importStoryFile(storyFile([sceneFrom({ version: 7, body: 'desk' })]))).kept, ['Selfie']);
+  assert.equal((await lib.loadScene(storyId, scene.id)).text, 'phone text, more');
+});
+
+test('a scene made on the phone comes back linked, not doubled', async (t) => {
+  const { lib } = await fresh(t);
+  const { storyId } = await lib.importStoryFile(storyFile([sceneFrom()]));
+  const mine = await lib.addScene(storyId, 'Phone only');
+  await lib.saveSceneText(storyId, mine, 'written on the bus', { words: 4 });
+  await lib.markSent(storyId, [mine]);
+  const s = await lib.importStoryFile(storyFile([sceneFrom(), sceneFrom({ id: 'd2', version: 1, phoneId: mine, title: 'Phone only', body: 'written on the bus' })]));
+  assert.equal(s.added, 0);
+  const story = await lib.getStory(storyId);
+  assert.equal(story.scenes.length, 2);
+  assert.equal(story.scenes.find((x) => x.id === mine).desktopId, 'd2');
+});
+
+test('ideas are marked sent, and stay on the phone', async (t) => {
+  const { lib } = await fresh(t);
+  const a = await lib.addCapture('one');
+  await lib.addCapture('two');
+  await lib.markCapturesSent([a]);
+  const list = await lib.listCaptures();
+  assert.ok(list.find((i) => i.id === a).sentAt);
+  assert.equal(list.length, 2);
+  assert.equal(list.find((i) => i.text === 'two').sentAt, undefined);
+});

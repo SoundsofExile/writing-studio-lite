@@ -15,6 +15,8 @@ const gitHash = (buf) => {
 const copies = {
   // From SoundsofExile/writing-studio, main, commit d72b267.
   'prose-format.cjs': '655140b16ce681f501eef7e8fbd811ef75b98508',
+  // From the desktop's feature/phone-sync branch (studio-dev), which brings handoff v2 to the desktop.
+  'handoff.cjs': '0badfc06e05f9bda1d8eb0632cec6763d5fc8637',
 };
 
 for (const [name, expected] of Object.entries(copies)) {

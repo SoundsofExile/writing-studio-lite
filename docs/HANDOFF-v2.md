@@ -66,6 +66,11 @@ The worst case is always "you get two copies to compare", never "one copy vanish
     }
 
 - Only include scenes the phone actually changed or created.
+- A scene made on the phone carries `"phoneId"` (the phone's own scene id) instead of a `sceneId`.
+  The desktop keeps it and puts it in later story files, so the phone links the two instead of
+  making a second copy.
+- The phone remembers what it sent. When a later story file has a newer desktop version of a scene
+  the phone hasn't touched since sending, the phone takes the desktop's copy.
 - `prose` is always the complete scene text, and is stored **exactly** as sent:
   no newline, spacing, punctuation or Markdown changes (studio-dev "Exact source" rule).
 - `story` is matched by the desktop the same way as v1 handoffs (ignoring capitals and
@@ -75,8 +80,9 @@ The worst case is always "you get two copies to compare", never "one copy vanish
 
 | Situation | Result |
 |---|---|
-| `sceneId` is null | New scene at the end of the story. |
+| `sceneId` is null | New scene at the end of the story, remembering the phone's `phoneId`. If a scene with that `phoneId` is already here (the phone sent it before a story file went back), that scene is updated instead, by the rules below. |
 | Scene exists, desktop `version` still equals `baseVersion` | Updated in place. A revision of the old text is saved first, so the History button can bring it back. |
+| Scene exists, and the only change since `baseVersion` is the phone's own last handoff | Updated in place too. The desktop records `phoneSync: { from: baseVersion, to: newVersion }` on each phone update, so the phone can keep writing and sending from the same story file. Any desktop edit moves the version past `to`, and the next phone text becomes a copy. |
 | Scene exists, but the desktop copy changed since export | **Conflict.** Desktop scene untouched. Phone text becomes a new scene "Title (phone copy)" placed right after it, with a note in its scratchpad. |
 | Scene exists and the phone text is identical | Skipped, nothing to do. |
 | `sceneId` not found (deleted or wrong file) | New scene, with a note in its scratchpad. |

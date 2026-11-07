@@ -112,14 +112,36 @@ test('re-importing the same handoff after applying it changes nothing', () => {
   assert.throws(() => planImport(parseHandoff(raw), recs, { now: NOW }), /already imported/);
 });
 
-test('a later handoff from the updated scene is clean, an older one is a conflict', () => {
+test('a later handoff from the updated scene is clean, and so is the phone carrying on from the same story file', () => {
   const recs = records();
   const first = v2({ handoffId: 'a', scenes: [{ sceneId: 's1', baseVersion: 3, prose: 'v2 text' }] });
   apply(recs, planImport(parseHandoff(first), recs, { now: NOW }));
-  const stale = v2({ handoffId: 'b', scenes: [{ sceneId: 's1', baseVersion: 3, prose: 'stale phone text' }] });
-  assert.equal(planImport(parseHandoff(stale), recs).summary.conflicts, 1);
+  // The phone kept writing without a new story file: still based on version 3.
+  const again = v2({ handoffId: 'b', scenes: [{ sceneId: 's1', baseVersion: 3, prose: 'more phone text' }] });
+  assert.equal(planImport(parseHandoff(again), recs).summary.updated, 1);
   const fresh = v2({ handoffId: 'c', scenes: [{ sceneId: 's1', baseVersion: 4, prose: 'v3 text' }] });
   assert.equal(planImport(parseHandoff(fresh), recs).summary.updated, 1);
+});
+
+test('after a desktop edit, the phone carrying on from the old story file is a conflict', () => {
+  const recs = records();
+  apply(recs, planImport(parseHandoff(v2({ handoffId: 'a', scenes: [{ sceneId: 's1', baseVersion: 3, prose: 'v2 text' }] })), recs, { now: NOW }));
+  const s1 = recs.find((r) => r.id === 's1');
+  Object.assign(s1, { body: 'edited on the desktop', version: s1.version + 1 });
+  const again = v2({ handoffId: 'b', scenes: [{ sceneId: 's1', baseVersion: 3, prose: 'more phone text' }] });
+  assert.equal(planImport(parseHandoff(again), recs).summary.conflicts, 1);
+});
+
+test('a scene made on the phone keeps its phone id on the desktop', () => {
+  const plan = planImport(parseHandoff(v2({ scenes: [{ sceneId: null, phoneId: 'p1', title: 'New', prose: 'x' }] })), records(), { now: NOW });
+  assert.equal(plan.ops[0].entry.phoneId, 'p1');
+});
+
+test('a phone scene sent again before the desktop sends a story file back updates its copy', () => {
+  const recs = records();
+  apply(recs, planImport(parseHandoff(v2({ handoffId: 'a', scenes: [{ sceneId: null, phoneId: 'p1', title: 'Bus', prose: 'one' }] })), recs, { now: NOW }));
+  const again = planImport(parseHandoff(v2({ handoffId: 'b', scenes: [{ sceneId: null, phoneId: 'p1', title: 'Bus', prose: 'one, two' }] })), recs, { now: NOW });
+  assert.deepEqual([again.summary.updated, again.summary.created], [1, 0]);
 });
 
 test('v1 (ChatGPT) handoffs still import as a new scene and still block duplicates', () => {
